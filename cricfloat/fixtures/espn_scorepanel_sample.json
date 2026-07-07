@@ -1,0 +1,274 @@
+{
+  "scores": [
+    {
+      "leagueName": null,
+      "events": [
+        {
+          "id": "1490709",
+          "uid": "s:200~e:1490709",
+          "date": "2026-07-05T14:30Z",
+          "endDate": "2026-07-06T23:59Z",
+          "name": "England Women v Australia Women",
+          "shortName": "ENG-W v AUS-W",
+          "description": "Final, ICC Women's T20 World Cup at London, Jul 5 2026",
+          "season": {
+            "year": 2026,
+            "type": 8634
+          },
+          "competitions": [
+            {
+              "id": "1490709",
+              "uid": "s:200~e:1490709~c:1490709",
+              "description": "Final",
+              "shortDescription": "Final,  at London",
+              "date": "2026-07-05T14:30Z",
+              "endDate": "2026-07-06T23:59Z",
+              "timeValid": true,
+              "neutralSite": true,
+              "attendance": 0,
+              "conferenceCompetition": false,
+              "playByPlayAvailable": false,
+              "fastcastAvailable": true,
+              "recent": true,
+              "class": {
+                "internationalClassId": "10",
+                "generalClassId": "17",
+                "generalClassCard": "Women T20",
+                "name": "Women's Twenty20 Internationals",
+                "eventType": "T20"
+              },
+              "venue": {
+                "id": "57129",
+                "fullName": "Lord's, London",
+                "address": {
+                  "city": "London",
+                  "state": "",
+                  "country": "England",
+                  "summary": "Lord's Cricket Ground, St John's Wood, London NW8 8QN. (Phone: 020 7616 8500)"
+                },
+                "capacity": 30000,
+                "indoor": false
+              },
+              "competitors": [
+                {
+                  "id": "975",
+                  "uid": "s:200~e:1490709~c:1490709~t:975",
+                  "type": "team",
+                  "order": 1,
+                  "homeAway": "home",
+                  "winner": "false",
+                  "score": "150/4",
+                  "team": {
+                    "id": "975",
+                    "uid": "s:200~t:975",
+                    "location": "England",
+                    "name": "England Women",
+                    "abbreviation": "ENG-W",
+                    "displayName": "England Women",
+                    "shortDisplayName": "ENG-W",
+                    "isActive": true,
+                    "countryCode": "www",
+                    "color": "#0673c1",
+                    "links": [
+                      {
+                        "rel": [
+                          "clubhouse",
+                          "desktop"
+                        ],
+                        "href": "https://www.espn.in/cricket/team/_/id/975/england-women",
+                        "text": "Clubhouse",
+                        "isExternal": false,
+                        "isPremium": false
+                      }
+                    ],
+                    "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/975.png"
+                  },
+                  "linescores": [
+                    {
+                      "period": 1,
+                      "value": 1,
+                      "displayValue": 1,
+                      "wickets": 4,
+                      "runs": 150,
+                      "overs": 20.0,
+                      "isBatting": true,
+                      "description": "complete",
+                      "isCurrent": 0
+                    },
+                    {
+                      "period": 2,
+                      "value": 2,
+                      "displayValue": 2,
+                      "wickets": 0,
+                      "runs": 0,
+                      "overs": 3.4,
+                      "isBatting": false,
+                      "description": "",
+                      "isCurrent": 1
+                    }
+                  ],
+                  "leaders": {
+                    "$ref": "http://new.core.espnuk.org/v2/sports/cricket/leagues/8634/events/1490709/competitions/1490709/competitors/975/leaders"
+                  },
+                  "statistics": [],
+                  "records": [
+                    {
+                      "name": "Total",
+                      "abbreviation": "Total",
+                      "type": "total",
+                      "summary": ""
+                    }
+                  ]
+                },
+                {
+                  "id": "238",
+                  "uid": "s:200~e:1490709~c:1490709~t:238",
+                  "type": "team",
+                  "order": 2,
+                  "homeAway": "away",
+                  "winner": "false",
+                  "score": "38/1 (3.4/20 ov, target 151)",
+                  "team": {
+                    "id": "238",
+                    "uid": "s:200~t:238",
+                    "location": "Australia",
+                    "name": "Australia Women",
+                    "abbreviation": "AUS-W",
+                    "displayName": "Australia Women",
+                    "shortDisplayName": "AUS-W",
+                    "isActive": true,
+                    "countryCode": "AU",
+                    "color": "#f3f702",
+                    "links": [
+                      {
+                        "rel": [
+                          "clubhouse",
+                          "desktop"
+                        ],
+                        "href": "https://www.espn.in/cricket/team/_/id/238/australia-women",
+                        "text": "Clubhouse",
+                        "isExternal": false,
+                        "isPremium": false
+                      }
+                    ],
+                    "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/238.png"
+                  },
+                  "linescores": [
+                    {
+                      "period": 1,
+                      "value": 1,
+                      "displayValue": 1,
+                      "wickets": 0,
+                      "runs": 0,
+                      "overs": 20.0,
+                      "isBatting": false,
+                      "description": "complete",
+                      "isCurrent": 0
+                    },
+                    {
+                      "period": 2,
+                      "value": 2,
+                      "displayValue": 2,
+                      "wickets": 1,
+                      "runs": 38,
+                      "overs": 3.4,
+                      "isBatting": true,
+                      "description": "",
+                      "isCurrent": 1
+                    }
+                  ],
+                  "leaders": {
+                    "$ref": "http://new.core.espnuk.org/v2/sports/cricket/leagues/8634/events/1490709/competitions/1490709/competitors/238/leaders"
+                  },
+                  "statistics": [],
+                  "records": [
+                    {
+                      "name": "Total",
+                      "abbreviation": "Total",
+                      "type": "total",
+                      "summary": ""
+                    }
+                  ]
+                }
+              ],
+              "status": {
+                "clock": 0,
+                "displayClock": "0'",
+                "period": 2,
+                "session": "",
+                "featuredAthletes": [],
+                "summary": "AUS Women require 113 runs",
+                "type": {
+                  "id": "0",
+                  "description": "Live",
+                  "detail": "Live",
+                  "shortDetail": "Live",
+                  "state": "in"
+                }
+              },
+              "odds": [],
+              "broadcasts": [],
+              "notes": [],
+              "situation": {},
+              "startDate": "2026-07-05T14:30Z",
+              "broadcast": "",
+              "geoBroadcasts": [],
+              "highlights": []
+            }
+          ],
+          "links": [
+            {
+              "language": "en",
+              "rel": [
+                "event",
+                "boxscore",
+                "match",
+                "live",
+                "summary",
+                "desktop"
+              ],
+              "href": "https://www.espn.in/cricket/series/8634/game/1490709/england-women-vs-australia-women-final-icc-womens-t20-world-cup-2026",
+              "text": "Summary",
+              "shortText": "Summary",
+              "isExternal": false,
+              "isPremium": false
+            },
+            {
+              "language": "en",
+              "rel": [
+                "event",
+                "league",
+                "serieshome",
+                "desktop"
+              ],
+              "href": "https://www.espn.in/cricket/series/_/id/8634/season/2026/icc-womens-t20-world-cup",
+              "text": "Series Home",
+              "shortText": "Series Home",
+              "isExternal": false,
+              "isPremium": false
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0'",
+            "period": 2,
+            "session": "",
+            "summary": "AUS Women require 113 runs",
+            "type": {
+              "id": "0",
+              "description": "Live",
+              "detail": "Live",
+              "shortDetail": "Live",
+              "state": "in"
+            }
+          },
+          "leagueId": "8634",
+          "isTopEvent": false
+        }
+      ]
+    }
+  ],
+  "provider": {
+    "name": "espn.com"
+  }
+}

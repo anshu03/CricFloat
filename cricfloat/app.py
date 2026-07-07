@@ -48,6 +48,17 @@ def _menu_bar_text(match) -> str:
     return f"{batting.team} {batting.runs}{w}"
 
 
+def _marshal(obj, selector, arg):
+    """Run `selector` on `obj` on the main thread in COMMON run-loop modes, so the
+    UI update fires even while a menu-bar menu is open (event-tracking mode). The
+    plain performSelectorOnMainThread uses default mode only, which stalls during
+    menu tracking — that's why a hidden widget's score froze and a menu 'Refresh
+    now' click was swallowed while the menu was up. Module-level (not a method) so
+    PyObjC doesn't treat it as an Objective-C selector."""
+    obj.performSelectorOnMainThread_withObject_waitUntilDone_modes_(
+        selector, arg, False, [Cocoa.NSRunLoopCommonModes])
+
+
 class _Poller(Cocoa.NSObject):
     """NSObject trampoline: owns the NSTimer and does main-thread marshalling.
 
@@ -68,8 +79,15 @@ class _Poller(Cocoa.NSObject):
     def schedule_(self, interval):  # noqa: N802
         if self._timer is not None:
             self._timer.invalidate()
-        self._timer = Cocoa.NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        # Create the timer and add it to the run loop in COMMON modes (not just
+        # the default mode). Otherwise, while the menu-bar menu is open — which
+        # puts the run loop into event-tracking mode — a default-mode timer
+        # pauses, so the score stops updating and a menu "Refresh now" click can
+        # be swallowed until tracking ends.
+        self._timer = Cocoa.NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
             float(interval), self, "tick:", None, False)
+        Cocoa.NSRunLoop.currentRunLoop().addTimer_forMode_(
+            self._timer, Cocoa.NSRunLoopCommonModes)
 
     def tick_(self, timer):  # noqa: N802 — NSTimer selector
         if self._fetching:
@@ -91,11 +109,9 @@ class _Poller(Cocoa.NSObject):
             # score. This drops ~3 of the ~4 requests per cycle while hidden.
             if self._app.widget_visible():
                 self._app.fetch_players_for(result.match)
-            self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "apply:", result, False)
+            _marshal(self, "apply:", result)
         except Exception:
-            self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "fetchFailed:", None, False)
+            _marshal(self, "fetchFailed:", None)
 
     def fetchFailed_(self, _):  # noqa: N802 — main-thread selector
         # A background fetch blew up. Clear the in-flight flag so polling resumes,
@@ -124,11 +140,9 @@ class _Poller(Cocoa.NSObject):
         try:
             result = self._app.service.current()
             self._app.fetch_players_for(result.match)
-            self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "applyPlayers:", result, False)
+            _marshal(self, "applyPlayers:", result)
         except Exception:
-            self.performSelectorOnMainThread_withObject_waitUntilDone_(
-                "applyPlayersFailed:", None, False)
+            _marshal(self, "applyPlayersFailed:", None)
 
     def applyPlayersFailed_(self, _):  # noqa: N802 — main-thread selector
         self._app.end_loading()
@@ -216,12 +230,16 @@ class CricFloatApp:
         selected = self.service.selected_id or (
             result.match.match_id if result.match else None)
         self.overlay.set_matches(result.matches, selected)
-        # Read the entry once (atomic) and only attach players if they belong to
-        # the match currently being shown — otherwise a just-switched match would
-        # briefly render the previous match's batsmen/bowler/balls.
+        # Attach the per-match detail (batsmen/bowler/balls + its summary-sourced
+        # score) ONLY when the widget is visible. While hidden we deliberately
+        # skip fetching players, so `_players_entry` is stale — overlaying its
+        # innings would clobber the FRESH scorepanel score with an old value (and
+        # freeze the menu-bar score). Read the entry once (atomic); require it to
+        # belong to the shown match so a just-switched match can't leak old data.
         entry = self._players_entry
         players = None
-        if entry is not None and result.match is not None and entry[0] == result.match.match_id:
+        if (self._widget_visible and entry is not None and result.match is not None
+                and entry[0] == result.match.match_id):
             players = entry[1]
             # The summary carries the score too. Use it so the shown score,
             # batsmen and bowler all come from ONE fetch (no scorepanel drift).

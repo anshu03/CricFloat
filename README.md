@@ -439,8 +439,9 @@ accounts, nothing stored except your window position.
 
 ## License
 
-_No license file is included yet._ Before open-sourcing, add a `LICENSE` (MIT is
-a common, permissive choice for projects like this) and update this section.
+Released under the [MIT License](LICENSE) — free to use, modify, and
+redistribute; just keep the copyright notice. See the [`LICENSE`](LICENSE) file
+for the full text.
 
 > **Note:** CricFloat uses ESPN's undocumented public endpoints for personal,
 > non-commercial use. Respect their service — keep poll intervals reasonable and

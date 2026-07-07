@@ -6,21 +6,8 @@ current matches (India first), with live batsmen, bowler, and the last 10 balls.
 
 Free ESPN data, **no API key needed**.
 
-<!-- Add a screenshot/GIF here once you have one:
-![CricFloat](docs/screenshot.png)
--->
-
-```
-┌─────────────────────────────────┐
-│ ◂ WI v SL                ● LIVE ✕│
-│ 2ND TEST · DAY 4            ↻  ↗ │
-│ WI            90/1          9.5  │
-│ SL            549/9         142  │
-│ WI trail by 84                  │
-│ [1][4][·][6] | [W][2][4] | [·][6]│
-│         BATSMEN & BOWLER  ▾      │
-└─────────────────────────────────┘
-```
+> 📸 _Screenshot coming soon — drop an image at `docs/screenshot.png` and
+> replace this line with `![CricFloat](docs/screenshot.png)`._
 
 ## Features
 

@@ -30,6 +30,11 @@ python demo_overlay.py
 The widget appears in the top-right and starts fetching. Quit from the 🏏
 menu-bar item, or press `Ctrl-C`.
 
+Prefer a double-clickable app? Build one with `pip install py2app && python
+setup.py py2app` — it lands at `dist/CricFloat.app`. (See
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#building-the-app-release) for details
+and releases.)
+
 ## Usage
 
 | Action | How |
@@ -55,8 +60,8 @@ CRICAPI_KEY=              # optional cricapi.com key, used only if ESPN is down
 ## Contributing
 
 PRs welcome! See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for how it works
-and **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** to get started. Roadmap: the
-core widget is done — up next is theming and packaging as a `.app`.
+and **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** to get started (including how
+to build the `.app`). Up next: theming and launch-at-login.
 
 ## License
 

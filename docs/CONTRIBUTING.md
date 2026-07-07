@@ -15,14 +15,37 @@ invariants.
    before changing the ESPN provider.
 
 **Status:** the core widget is complete — data layer, floating window, adaptive
-polling, menu-bar item, and remembered position all work. What's left:
+polling, menu-bar item, remembered position, and a `.app` build (below) all work.
 
-- Theming / colors (a configurable accent).
-- Packaging as a double-clickable `.app` via py2app, with optional
-  launch-at-login.
+**Good first issues:** theming / colors (a configurable accent), launch-at-login,
+additional data providers, and a real test suite.
 
-**Good first issues:** the two items above, plus additional data providers and a
-real test suite.
+## Building the `.app` (release)
+
+CricFloat bundles into a standalone, double-clickable macOS app with
+[py2app](https://py2app.readthedocs.io/):
+
+```bash
+pip install py2app
+python setup.py py2app
+```
+
+The app lands at **`dist/CricFloat.app`** — double-click to run, or drag it to
+`/Applications`. It's a menu-bar accessory (`LSUIElement`), so there's no Dock
+icon; look for the 🏏 in the menu bar.
+
+**To cut a release:** zip the app and attach it to a [GitHub Release](https://github.com/anshu03/CricFloat/releases)
+(that's the standard way to distribute a Mac app — GitHub Packages is for
+dependency registries, not downloadable apps):
+
+```bash
+cd dist && ditto -c -k --keepParent CricFloat.app CricFloat.zip
+```
+
+> **Note on unsigned apps:** the build isn't code-signed or notarized, so on
+> first launch macOS Gatekeeper will warn. Users right-click the app → **Open**,
+> or run `xattr -dr com.apple.quarantine CricFloat.app`. Signing/notarization
+> (needs an Apple Developer account) is a future improvement.
 
 ## Running the data layer without the UI
 

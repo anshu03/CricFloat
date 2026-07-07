@@ -30,8 +30,9 @@ endpoints — **no API key required**.
   the bowler's figures, and the **last 10 deliveries** as color-coded tiles.
 - **Genuinely live** — polls every 10s while a match is on, with aggressive
   anti-staleness so a wicket never flickers away.
-- **Menu-bar item** — glance at the score up top (`🏏 ENG 158/4`); hide/show the
-  widget or quit from its menu.
+- **Menu-bar item** — glance at the live score up top (`🏏 ENG 158/4`), even with
+  the widget hidden; hide/show the widget or quit from its menu. Hidden mode
+  fetches only the score, cutting network use by ~¾.
 - **Stays out of your way** — remembers where you dragged it, snaps back if a
   monitor is unplugged, hover tooltips explain every button, and it fades to a
   quiet dark HUD that reads on light or dark desktops.

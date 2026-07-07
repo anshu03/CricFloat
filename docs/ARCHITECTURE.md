@@ -29,6 +29,20 @@ fires on an adaptive interval — 10s while any match is live, 300s when idle. E
 tick spawns a **background thread** so the network call never blocks the UI; the
 result is marshaled back to the main thread to update the window.
 
+> The timer and the main-thread callbacks are registered in
+> **`NSRunLoopCommonModes`**, not the default mode. Opening the menu-bar menu
+> puts the run loop into event-tracking mode, and default-mode timers/selectors
+> pause there — which would freeze the menu-bar score and swallow a menu
+> "Refresh now" while the menu is open. Use the common-modes variants
+> (`addTimer_forMode_`, `performSelectorOnMainThread_..._modes_`) if you touch
+> this code.
+
+**Hidden vs. visible.** While the widget is hidden, the poll fetches **only the
+score** (for the menu bar) and skips the heavier per-match `summary`/`playbyplay`
+calls. So `_players_entry` is stale while hidden — `render` therefore applies the
+summary-sourced score/players **only when visible**, and lets the fresh
+scorepanel score flow straight to the menu bar otherwise.
+
 **Rendering.** `render.py` turns a `MatchScore` (+ optional `LivePlayers`) into a
 plain `CardView` — pre-formatted team rows, summary, chip, balls, and detail
 lines — so `overlay_window.py` stays a "dumb" view that just lays out the card.

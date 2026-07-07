@@ -14,8 +14,15 @@ invariants.
 4. **Respect the [anti-staleness guards](ARCHITECTURE.md#the-anti-staleness-design)**
    before changing the ESPN provider.
 
-**Good first issues:** theming/colors (Phase 4), py2app packaging (Phase 5),
-additional data providers, and a real test suite.
+**Status:** the core widget is complete — data layer, floating window, adaptive
+polling, menu-bar item, and remembered position all work. What's left:
+
+- Theming / colors (a configurable accent).
+- Packaging as a double-clickable `.app` via py2app, with optional
+  launch-at-login.
+
+**Good first issues:** the two items above, plus additional data providers and a
+real test suite.
 
 ## Running the data layer without the UI
 

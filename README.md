@@ -1,10 +1,10 @@
 # 🏏 CricFloat
 
-**An always-on-top live cricket score widget for macOS.** A small, translucent
-scorecard that floats above all your windows — across every Space and over
-fullscreen apps — so you can follow the match without alt-tabbing to a browser.
-Shows all current matches (India first), pulling from ESPN's free public
-endpoints — **no API key required**.
+A tiny always-on-top **live cricket score** widget for macOS. It floats above your
+windows so you can follow the match without switching to a browser — showing all
+current matches (India first), with live batsmen, bowler, and the last 10 balls.
+
+Free ESPN data, **no API key needed**.
 
 <!-- Add a screenshot/GIF here once you have one:
 ![CricFloat](docs/screenshot.png)
@@ -24,107 +24,54 @@ endpoints — **no API key required**.
 
 ## Features
 
-- **All matches, not just India** — pick any current international or domestic
-  match from a themed dropdown (grouped LIVE / FINISHED / UPCOMING, India first).
-- **Live detail on demand** — expand to see current batsmen (striker marked `*`),
-  the bowler's figures, and the **last 10 deliveries** as color-coded tiles.
-- **Genuinely live** — polls every 10s while a match is on, with aggressive
-  anti-staleness so a wicket never flickers away.
-- **Menu-bar item** — glance at the live score up top (`🏏 ENG 158/4`), even with
-  the widget hidden; hide/show the widget or quit from its menu. Hidden mode
-  fetches only the score, cutting network use by ~¾.
-- **Stays out of your way** — remembers where you dragged it, snaps back if a
-  monitor is unplugged, hover tooltips explain every button, and it fades to a
-  quiet dark HUD that reads on light or dark desktops.
+- 📊 **All matches** — pick any current match from a dropdown; India first.
+- 🏏 **Live detail** — batsmen, bowler, and the last 10 balls, on demand.
+- 🔔 **Menu-bar score** — glance at the score even with the widget hidden.
+- ⚡ **Genuinely live** — refreshes every 10s while a match is on.
 
-## Requirements
+## Install
 
-- **macOS** (native AppKit app via PyObjC).
-- **Python 3.10+** — the code uses `X | None` type syntax; Python 3.9 and the
-  system `python3` **will not work**. ([pyenv](https://github.com/pyenv/pyenv) is
-  an easy way to get 3.10+.)
-
-## Quick start
+Needs **macOS** and **Python 3.10+**.
 
 ```bash
 git clone https://github.com/anshu03/CricFloat.git
 cd CricFloat
-
-python3.10 -m venv .venv && source .venv/bin/activate   # recommended
 pip install -r requirements.txt
-
 python demo_overlay.py
 ```
 
-The widget appears top-right and starts fetching. Quit from the menu bar (🏏), or
-`Ctrl-C` in the terminal.
+The widget appears in the top-right and starts fetching. Quit from the 🏏
+menu-bar item, or press `Ctrl-C`.
 
-## Using the widget
+## Usage
 
 | Action | How |
 |--------|-----|
-| Switch match | Click `◂ <match name>` (top-left) |
-| See batsmen & bowler | Click **BATSMEN & BOWLER ▾** |
+| Switch match | Click the match name (top-left) |
+| Show batsmen & bowler | Click **BATSMEN & BOWLER ▾** |
 | Open on ESPNcricinfo | Click `↗` |
-| Refresh now | Click `↻`, or menu bar → *Refresh now* |
-| Move the widget | Drag it — the position is remembered |
-| Hide / show | `✕` hides it; menu bar (🏏) → *Show widget* brings it back |
-| Quit | Menu bar (🏏) → *Quit CricFloat* |
-
-The `✕` **hides** the widget — the menu bar is the app's persistent home.
+| Refresh now | Click `↻` |
+| Move it | Drag it — the position is remembered |
+| Hide / show | `✕` hides it; use the 🏏 menu to bring it back |
+| Quit | 🏏 menu → *Quit* |
 
 ## Configuration
 
-Settings live in [`cricfloat/config.py`](cricfloat/config.py) and are all
-**environment-variable overridable**:
-
-| Env var | Default | Meaning |
-|---------|---------|---------|
-| `CRICFLOAT_POLL_LIVE` | `10` | Seconds between polls while a match is live |
-| `CRICFLOAT_POLL_IDLE` | `300` | Seconds between polls when nothing is live |
-| `CRICFLOAT_HTTP_TIMEOUT` | `12` | Per-request network timeout (seconds) |
-| `CRICAPI_KEY` | *(empty)* | Optional [CricAPI](https://cricapi.com) key — a fallback source, only used if ESPN is unreachable |
+Optional environment variables (defaults shown):
 
 ```bash
-CRICFLOAT_POLL_LIVE=15 python demo_overlay.py
+CRICFLOAT_POLL_LIVE=10    # seconds between refreshes while live
+CRICFLOAT_POLL_IDLE=300   # seconds between refreshes when nothing is live
+CRICAPI_KEY=              # optional cricapi.com key, used only if ESPN is down
 ```
-
-## Project layout
-
-```
-cricfloat/
-├── config.py          # poll intervals, key, timeouts (env-overridable)
-├── service.py         # ScoreService: provider chain, selection, cache
-├── app.py             # CricFloatApp + _Poller: wires UI ↔ data, runs the loop
-├── providers/         # espn.py (primary) · cricapi.py (fallback) · base.py (models)
-├── ui/                # overlay_window · dropdown_panel · menu_bar · render · loader
-└── fixtures/          # saved API responses for offline testing
-
-demo_overlay.py        # ← run this: launches the full widget
-check_scores.py        # data-layer smoke test (no UI)
-```
-
-Want the deeper picture? See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for
-the layered design, threading model, and the anti-staleness guards.
-
-## Roadmap
-
-- [x] **Phase 1** — Data layer: provider chain (ESPN + CricAPI), selection, caching.
-- [x] **Phase 2** — Floating always-on-top borderless `NSWindow` (PyObjC).
-- [x] **Phase 3** — Poll loop → render → window, adaptive interval, background fetches.
-- [x] **Phase 4** — Menu-bar toggle/quit ✅, remembered position ✅ · *colors/theming (in progress)*.
-- [ ] **Phase 5** — Package as a double-clickable `.app` (py2app) + launch-at-login.
 
 ## Contributing
 
-Contributions welcome — see **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** for
-the developer guide, offline testing, code conventions, and troubleshooting.
+PRs welcome! See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for how it works
+and **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** to get started. Roadmap: the
+core widget is done — up next is theming and packaging as a `.app`.
 
 ## License
 
-Released under the [MIT License](LICENSE) — free to use, modify, and
-redistribute; just keep the copyright notice.
-
-> CricFloat uses ESPN's undocumented public endpoints for personal,
-> non-commercial use. Keep poll intervals reasonable. Not affiliated with or
-> endorsed by ESPN, ESPNcricinfo, or CricAPI.
+[MIT](LICENSE). Uses ESPN's public endpoints for personal, non-commercial use;
+not affiliated with ESPN, ESPNcricinfo, or CricAPI.

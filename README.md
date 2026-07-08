@@ -18,6 +18,23 @@ Free ESPN data, **no API key needed**.
 
 ## Install
 
+### Option A — Download the app (easiest)
+
+1. Grab **CricFloat.zip** from the [latest release](https://github.com/anshu03/CricFloat/releases), unzip it, and drag **CricFloat.app** to your Applications folder.
+2. **First launch only — get past macOS Gatekeeper** (the app is free & open-source but not notarized by Apple, so macOS asks you to confirm):
+
+   > **"Apple could not verify CricFloat is free of malware…"** — this is expected. To open it:
+   >
+   > 1. Double-click the app once (it gets blocked — that's fine).
+   > 2. Open **System Settings → Privacy & Security**.
+   > 3. Scroll down to the message about **CricFloat** and click **Open Anyway**, then confirm with Touch ID / password.
+   >
+   > _Terminal alternative:_ `xattr -dr com.apple.quarantine /Applications/CricFloat.app`
+
+3. After that one-time step, it opens normally. Look for the 🏏 in your menu bar.
+
+### Option B — Run from source
+
 Needs **macOS** and **Python 3.10+**.
 
 ```bash
@@ -27,13 +44,9 @@ pip install -r requirements.txt
 python demo_overlay.py
 ```
 
-The widget appears in the top-right and starts fetching. Quit from the 🏏
-menu-bar item, or press `Ctrl-C`.
-
-Prefer a double-clickable app? Build one with `pip install py2app && python
-setup.py py2app` — it lands at `dist/CricFloat.app`. (See
-[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#building-the-app-release) for details
-and releases.)
+Prefer to build the `.app` yourself? `pip install py2app && python setup.py
+py2app` produces `dist/CricFloat.app`. (See
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#building-the-app-release) for details.)
 
 ## Usage
 

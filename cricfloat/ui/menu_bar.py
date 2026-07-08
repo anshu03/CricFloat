@@ -43,30 +43,50 @@ class MenuBar(Cocoa.NSObject):
         return self
 
     def _build(self):
-        bar = Cocoa.NSStatusBar.systemStatusBar()
-        self._item = bar.statusItemWithLength_(_VARIABLE_LENGTH)
-        # A cricket glyph as the menu-bar icon; falls back to text on old macOS.
-        button = self._item.button()
-        if button is not None:
-            button.setTitle_("\U0001F3CF")  # 🏏
-            button.setToolTip_("CricFloat — Live Cricket Scores")
+        # The status item is retained by this (retained) MenuBar object; if its
+        # creation ever fails on some Mac, don't let that take down app startup —
+        # the app still has the widget + the ⌘Q app-menu quit path.
+        self._item = None
+        self._toggle_item = None
+        try:
+            bar = Cocoa.NSStatusBar.systemStatusBar()
+            self._item = bar.statusItemWithLength_(_VARIABLE_LENGTH)
+            # Keep the item pinned to the menu bar (not user-hideable), so it
+            # doesn't silently vanish behind the notch / overflow with no way to
+            # get it back.
+            if hasattr(self._item, "setVisible_"):
+                self._item.setVisible_(True)
+            if hasattr(self._item, "behavior") and hasattr(self._item, "setBehavior_"):
+                self._item.setBehavior_(0)  # not removal/terminate-on-removal
 
-        menu = Cocoa.NSMenu.alloc().init()
-        # Show/Hide is the toggle; its title is refreshed in set_widget_visible.
-        self._toggle_item = _menu_item(menu, "Hide widget", self, "toggleClicked:", "h")
-        menu.addItem_(Cocoa.NSMenuItem.separatorItem())
-        _menu_item(menu, "Refresh now", self, "refreshClicked:", "r")
-        menu.addItem_(Cocoa.NSMenuItem.separatorItem())
-        _menu_item(menu, "Quit CricFloat", self, "quitClicked:", "q")
-        self._item.setMenu_(menu)
+            # A cricket glyph as the menu-bar icon; falls back to text on old macOS.
+            button = self._item.button()
+            if button is not None:
+                button.setTitle_("\U0001F3CF")  # 🏏
+                button.setToolTip_("CricFloat — Live Cricket Scores")
+
+            menu = Cocoa.NSMenu.alloc().init()
+            # Show/Hide is the toggle; its title is refreshed in set_widget_visible.
+            self._toggle_item = _menu_item(menu, "Hide widget", self, "toggleClicked:", "h")
+            menu.addItem_(Cocoa.NSMenuItem.separatorItem())
+            _menu_item(menu, "Refresh now", self, "refreshClicked:", "r")
+            menu.addItem_(Cocoa.NSMenuItem.separatorItem())
+            _menu_item(menu, "Quit CricFloat", self, "quitClicked:", "q")
+            self._item.setMenu_(menu)
+        except Exception:
+            # Menu bar unavailable — the app still works via the widget and ⌘Q.
+            self._item = None
 
     def set_widget_visible(self, visible: bool):
         """Keep the toggle label in sync with the widget's actual visibility."""
-        self._toggle_item.setTitle_("Hide widget" if visible else "Show widget")
+        if self._toggle_item is not None:
+            self._toggle_item.setTitle_("Hide widget" if visible else "Show widget")
 
     def set_status(self, text: str):
         """Show a compact live score ('WI 90/1') in the menu bar, or just the 🏏
         icon when there's nothing live to show."""
+        if self._item is None:
+            return
         button = self._item.button()
         if button is None:
             return

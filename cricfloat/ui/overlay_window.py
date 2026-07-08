@@ -320,7 +320,8 @@ class OverlayWindow:
     def __init__(self) -> None:
         self.on_click: Callable[[str], None] | None = None
         self.on_select: Callable[[str], None] | None = None
-        self.on_close: Callable[[], None] | None = None
+        self.on_close: Callable[[], None] | None = None  # ✕ — quit the app
+        self.on_hide: Callable[[], None] | None = None    # – — hide to menu bar
         self.on_refresh: Callable[[], None] | None = None
 
         self._url = ""
@@ -811,10 +812,15 @@ class OverlayWindow:
         anim.setDuration_(0.22)
         layer.addAnimation_forKey_(anim, "press")
 
-    def closeClicked_(self, sender):  # noqa: N802
+    def closeClicked_(self, sender):  # noqa: N802 — ✕ quits the app
         self._flash(sender)
         if self.on_close:
             self.on_close()
+
+    def hideClicked_(self, sender):  # noqa: N802 — – hides to the menu bar
+        self._flash(sender)
+        if self.on_hide:
+            self.on_hide()
 
     def refreshClicked_(self, sender):  # noqa: N802
         self._flash(sender)
@@ -945,18 +951,20 @@ class OverlayWindow:
         self._name_x = left           # left edge of the score/name column
         # Initial score-right; recomputed per render from the widest overs value.
         self._score_right = self._right - 40.0
-        # Reserve the top-right corner for the close button; the chip sits on the
-        # line below it, flush to the right edge.
+        # Reserve the top-right corner for the hide + close buttons; the chip
+        # sits on the line below them, flush to the right edge.
         close_w = 16.0
+        hide_w = 16.0
+        corner_w = hide_w + close_w  # total width the two top-right icons occupy
 
-        # --- Row 1 (top): ◂ match picker (left) · ● chip + ✕ close (right) ---
+        # --- Row 1 (top): ◂ match picker (left) · ● chip + – hide + ✕ quit (right) ---
         chip_w = 72.0  # wide enough for "UPCOMING"
         # Dropdown picker as the top row. The button is sized to just its text
         # (via set_matches -> sizeToFit) so only the text/arrow opens the
         # dropdown; the empty area beside it belongs to the body (draggable).
         # The arrow points LEFT since the panel opens to the widget's left.
         trigger = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect(left - 2, _H - 27, inner_w - chip_w - close_w + 2, 20), 0.92)
+            NSMakeRect(left - 2, _H - 27, inner_w - chip_w - corner_w + 2, 20), 0.92)
         trigger.setBordered_(False)
         trigger.setFont_(NSFont.systemFontOfSize_weight_(13.0, 0.4))
         trigger.setTitle_("◂  Match")
@@ -971,7 +979,7 @@ class OverlayWindow:
         self._trigger_x = left - 2
         self._trigger_label = "Match"  # current selection text (arrow prepended)
 
-        # Close button flush to the right edge.
+        # Quit button (✕) flush to the right edge — quits the app.
         close = HoverButton.alloc().initWithFrame_baseAlpha_(
             NSMakeRect(_W - _PADX - close_w, _H - 26, close_w, 16), 0.82)
         close.setBordered_(False)
@@ -980,13 +988,27 @@ class OverlayWindow:
         close.setContentTintColor_(_white(0.82))
         close.setTarget_(self)
         close.setAction_("closeClicked:")
-        close.setHint_callback_("Hide widget (Quit from menu bar)", self._show_hint)
+        close.setHint_callback_("Quit CricFloat", self._show_hint)
         body.addSubview_(close)
         self._close = close
 
-        # Chip just left of the close button.
+        # Hide button (–) just left of the quit button — hides the widget to the
+        # menu bar (the app keeps running).
+        hide = HoverButton.alloc().initWithFrame_baseAlpha_(
+            NSMakeRect(_W - _PADX - close_w - hide_w, _H - 26, hide_w, 16), 0.82)
+        hide.setBordered_(False)
+        hide.setTitle_("–")
+        hide.setFont_(NSFont.systemFontOfSize_weight_(14, 0.5))
+        hide.setContentTintColor_(_white(0.82))
+        hide.setTarget_(self)
+        hide.setAction_("hideClicked:")
+        hide.setHint_callback_("Hide to menu bar", self._show_hint)
+        body.addSubview_(hide)
+        self._hide_btn = hide
+
+        # Chip just left of the two corner buttons.
         self._chip = self._label(
-            NSMakeRect(_W - _PADX - close_w - chip_w - 2, _H - 25, chip_w, 14),
+            NSMakeRect(_W - _PADX - corner_w - chip_w - 2, _H - 25, chip_w, 14),
             10.0, 0.5, _white(0.55), align="right")
         body.addSubview_(self._chip)
 
@@ -1112,7 +1134,7 @@ class OverlayWindow:
         # chevron, bat markers and yet-to-bat tags — all top-anchored. (The
         # detail container is positioned separately in _resize_for.)
         pinned = (list(self._content_views)
-                  + [self._close, self._trigger, self._chevron,
+                  + [self._close, self._hide_btn, self._trigger, self._chevron,
                      self._summary_note]
                   + list(self._yet_marks))
         for _n, bat, _s, _o in self._rows:

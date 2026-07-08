@@ -171,7 +171,8 @@ class CricFloatApp:
         self.overlay = OverlayWindow()
         self.overlay.on_click = self._on_click
         self.overlay.on_select = self._on_select
-        self.overlay.on_close = self._on_close
+        self.overlay.on_close = self._quit          # ✕ quits the app
+        self.overlay.on_hide = self._on_hide        # – hides to the menu bar
         self.overlay.on_refresh = self._on_refresh
         # Menu-bar item: a persistent home so the widget can be hidden/shown and
         # the app quit even when the floating window is off-screen or hidden.
@@ -281,10 +282,9 @@ class CricFloatApp:
             self.begin_loading()
         self._poller.refresh_now()
 
-    def _on_close(self) -> None:
-        # The widget's ✕ now HIDES the widget (Quit lives in the menu bar). The
-        # menu-bar item remains, so the widget can be brought back or the app
-        # quit from there.
+    def _on_hide(self) -> None:
+        # The widget's – button hides it to the menu bar; the app keeps running
+        # and the score keeps updating up top. Bring it back via the 🏏 menu.
         self._set_widget_visible(False)
 
     def widget_visible(self) -> bool:

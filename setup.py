@@ -34,7 +34,8 @@ OPTIONS = {
     "plist": PLIST,
     # Smaller, cleaner bundle.
     "optimize": 2,
-    # "iconfile": "docs/CricFloat.icns",  # add an .icns here for a custom icon
+    # App icon (cricket ball on green). Regenerate with tools/make_icon.py.
+    "iconfile": "docs/CricFloat.icns",
 }
 
 setup(

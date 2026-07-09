@@ -57,6 +57,7 @@ py2app` produces `dist/CricFloat.app`. (See
 | Open on ESPNcricinfo | Click `↗` |
 | Refresh now | Click `↻` |
 | Move it | Drag it — the position is remembered |
+| Resize it | 🏏 menu → *Size* → Default / Large (remembered) |
 | Hide / show | `✕` hides it; use the 🏏 menu to bring it back |
 | Quit | 🏏 menu → *Quit* |
 
@@ -67,6 +68,7 @@ Optional environment variables (defaults shown):
 ```bash
 CRICFLOAT_POLL_LIVE=10    # seconds between refreshes while live
 CRICFLOAT_POLL_IDLE=300   # seconds between refreshes when nothing is live
+CRICFLOAT_SIZE=default    # initial widget size: default | large
 CRICAPI_KEY=              # optional cricapi.com key, used only if ESPN is down
 ```
 

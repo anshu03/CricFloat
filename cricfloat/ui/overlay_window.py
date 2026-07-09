@@ -45,6 +45,18 @@ from .render import CardView
 warnings.filterwarnings("ignore", category=objc.ObjCPointerWarning)
 
 NSScreenSaverWindowLevel = 1000
+# Widget window level: just BELOW the menu-bar popup layer (NSPopUpMenuWindowLevel
+# = 101), so our own menu, other apps' menu-bar dropdowns, and ordinary menus
+# render in front of the widget. Still above normal windows, panels, the Dock,
+# and (via collection behavior) fullscreen apps, so it stays "always on top" of
+# your actual work.
+#
+# KNOWN LIMITATION: Apple's Control Center / system menu-bar panels (Wi-Fi,
+# battery, sound, clock) are rendered by macOS ABOVE app windows via private
+# mechanisms — there's no public window level that sits below them yet above
+# normal windows. So those specific system panels can still cover the widget;
+# drag it away from the top-right corner if that's ever a problem.
+_WIDGET_LEVEL = 100
 NSWindowStyleMaskBorderless = 0
 NSVisualEffectMaterialHUDWindow = 13
 NSVisualEffectStateActive = 1
@@ -54,11 +66,64 @@ NSWindowAnimationBehaviorNone = 2
 _BEHAVIOR_MOVE_TO_ACTIVE_SPACE = 1 << 1
 _BEHAVIOR_FULLSCREEN_AUXILIARY = 1 << 8
 
-_W = 280.0
-_H = 215.0  # room for header, chip, two rows, summary + 3 detail lines
-_MARGIN = 22.0
-_BAR = 4.0
-_PADX = 15.0
+# --- UI scale ---------------------------------------------------------------
+# The whole widget (window width + fonts + spacing) is drawn at BASE_* sizes
+# multiplied by _SCALE. Change _SCALE (via set_scale / config) to switch between
+# Default and Large. Every hard pixel/point literal in this file goes through
+# _s() (numbers) or _font() (fonts) so one factor uniformly resizes the widget.
+SCALE_PRESETS = {"default": 1.0, "large": 1.20}
+_SCALE_KEY = "CricFloatSizePreset"  # UserDefaults key for the chosen preset
+_SCALE = 1.0
+
+
+def _s(n: float) -> float:
+    """Scale a base pixel/point value by the current UI scale."""
+    return n * _SCALE
+
+
+def load_size_preset(default: str = "default") -> str:
+    """The persisted size-preset name, falling back to `default` (the env value)."""
+    stored = Cocoa.NSUserDefaults.standardUserDefaults().stringForKey_(_SCALE_KEY)
+    return stored if stored in SCALE_PRESETS else default
+
+
+def apply_size_preset(name: str) -> None:
+    """Set + persist the size preset by name (default/large)."""
+    if name not in SCALE_PRESETS:
+        name = "default"
+    Cocoa.NSUserDefaults.standardUserDefaults().setObject_forKey_(name, _SCALE_KEY)
+    _set_scale(SCALE_PRESETS[name])
+
+
+def _set_scale(value: float) -> None:
+    """Set the module UI scale and recompute the derived base dimensions used at
+    build time. Must be called BEFORE an OverlayWindow is constructed."""
+    global _SCALE, _W, _H, _MARGIN, _BAR, _PADX, _BALL_D, _BALL_RADIUS, \
+        _BALL_GAP, _OVER_GAP
+    _SCALE = value
+    _W = _BASE_W * value
+    _H = _BASE_H * value
+    _MARGIN = _BASE_MARGIN * value
+    _BAR = _BASE_BAR * value
+    _PADX = _BASE_PADX * value
+    _BALL_D = _BASE_BALL_D * value
+    _BALL_RADIUS = _BASE_BALL_RADIUS * value
+    _BALL_GAP = _BASE_BALL_GAP * value
+    _OVER_GAP = _BASE_OVER_GAP * value
+
+
+# Base (1.0x) dimensions; the live _W/_H/... are set from these by _set_scale().
+_BASE_W = 280.0
+_BASE_H = 215.0  # room for header, chip, two rows, summary + 3 detail lines
+_BASE_MARGIN = 22.0
+_BASE_BAR = 4.0
+_BASE_PADX = 15.0
+
+_W = _BASE_W
+_H = _BASE_H  # room for header, chip, two rows, summary + 3 detail lines
+_MARGIN = _BASE_MARGIN
+_BAR = _BASE_BAR
+_PADX = _BASE_PADX
 
 # NSUserDefaults keys for the remembered window position.
 _POS_KEY_X = "CricFloatWindowOriginX"
@@ -80,10 +145,14 @@ _BALL_COLORS = {
     "bye": (0.30, 0.50, 0.55),     # teal
 }
 
-_BALL_D = 20.0        # ball tile size (rounded square)
-_BALL_RADIUS = 5.0    # corner radius — rounded square, not a full circle
-_BALL_GAP = 4.0       # gap between balls
-_OVER_GAP = 9.0       # extra gap at an over boundary
+_BASE_BALL_D = 20.0        # ball tile size (rounded square)
+_BASE_BALL_RADIUS = 5.0    # corner radius — rounded square, not a full circle
+_BASE_BALL_GAP = 4.0       # gap between balls
+_BASE_OVER_GAP = 9.0       # extra gap at an over boundary
+_BALL_D = _BASE_BALL_D
+_BALL_RADIUS = _BASE_BALL_RADIUS
+_BALL_GAP = _BASE_BALL_GAP
+_OVER_GAP = _BASE_OVER_GAP
 
 
 def _ball_color(kind: str):
@@ -102,6 +171,13 @@ def _text_width(text: str, font) -> float:
     """Rendered width of `text` in `font` (points)."""
     s = Cocoa.NSString.stringWithString_(text)
     return s.sizeWithAttributes_({Cocoa.NSFontAttributeName: font}).width
+
+
+def _font(size: float, weight: float | None = None):
+    """A system font at `size` points, multiplied by the current UI scale."""
+    if weight is None:
+        return NSFont.systemFontOfSize_(_s(size))
+    return NSFont.systemFontOfSize_weight_(_s(size), weight)
 
 
 class ClickableView(NSView):
@@ -213,11 +289,10 @@ class HintTooltip:
     hovered button. Its own borderless window (so it can sit outside the widget's
     bounds); sized to its text and centered over the widget."""
 
-    _H = 24.0  # tooltip height
-    _GAP = 6.0  # gap between the tooltip's bottom and the widget's top
-
     def __init__(self) -> None:
-        self._label = None      # set inside _build()
+        self._H = _s(24.0)   # tooltip height (scaled with the UI)
+        self._GAP = _s(6.0)  # gap between the tooltip's bottom and the widget top
+        self._label = None   # set inside _build()
         self._visible = False
         self._window = self._build()
 
@@ -225,7 +300,7 @@ class HintTooltip:
         win = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, 120, self._H),
             NSWindowStyleMaskBorderless, Cocoa.NSBackingStoreBuffered, False)
-        win.setLevel_(NSScreenSaverWindowLevel)
+        win.setLevel_(_WIDGET_LEVEL)
         win.setCollectionBehavior_(
             _BEHAVIOR_MOVE_TO_ACTIVE_SPACE | _BEHAVIOR_FULLSCREEN_AUXILIARY)
         win.setOpaque_(False)
@@ -235,19 +310,19 @@ class HintTooltip:
 
         # Plain rounded dark pill (no NSVisualEffectView as contentView — that
         # corner-mask combo has crashed before).
-        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 120, self._H))
+        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, _s(120), self._H))
         container.setWantsLayer_(True)
         container.layer().setBackgroundColor_(_rgb(_SCRIM, 0.96).CGColor())
-        container.layer().setCornerRadius_(6.0)
+        container.layer().setCornerRadius_(_s(6.0))
         container.layer().setBorderWidth_(0.5)
         container.layer().setBorderColor_(_white(0.16).CGColor())
 
-        lbl = NSTextField.alloc().initWithFrame_(NSMakeRect(10, 3, 100, 17))
+        lbl = NSTextField.alloc().initWithFrame_(NSMakeRect(_s(10), _s(3), _s(100), _s(17)))
         lbl.setBezeled_(False)
         lbl.setDrawsBackground_(False)
         lbl.setEditable_(False)
         lbl.setSelectable_(False)
-        lbl.setFont_(NSFont.systemFontOfSize_weight_(11.5, 0.4))
+        lbl.setFont_(_font(11.5, 0.4))
         lbl.setTextColor_(_white(0.92))
         lbl.setAlignment_(Cocoa.NSTextAlignmentCenter)
         container.addSubview_(lbl)
@@ -258,9 +333,9 @@ class HintTooltip:
     def show(self, text: str, anchor_window: NSWindow) -> None:
         """Show `text` centered just above `anchor_window` (the widget)."""
         f = self._label.font()
-        w = _text_width(text, f) + 22.0  # padding either side
+        w = _text_width(text, f) + _s(22.0)  # padding either side
         self._label.setStringValue_(text)
-        self._label.setFrame_(NSMakeRect(0, 3, w, 17))
+        self._label.setFrame_(NSMakeRect(0, _s(3), w, _s(17)))
         cv = self._window.contentView()
         cv.setFrame_(NSMakeRect(0, 0, w, self._H))
         self._window.setContentSize_(Cocoa.NSMakeSize(w, self._H))
@@ -318,6 +393,19 @@ class ScreenObserver(Cocoa.NSObject):
 
 class OverlayWindow:
     def __init__(self) -> None:
+        # Scaled layout constants (distance-from-top of each content line's bottom
+        # edge, etc.). Computed from the base values via _s() so they track the UI
+        # scale set before construction. Used by _resize_for / start_loading.
+        self._HEADER_BOTTOM = _s(54.0)     # bottom of picker + venue/icons band
+        self._SUMMARY_BOTTOM = _s(125.0)
+        self._BALLS_BOTTOM = _s(151.0)     # recent-balls strip (above the detail)
+        self._CHEVRON_BOTTOM = _s(176.0)   # "BATSMEN & BOWLER ▾" section toggle
+        self._DETAIL_TOP = _s(182.0)       # detail container start (distance from top)
+        self._BOTTOM_PAD = _s(12.0)        # padding below the last content line
+        self._LOADING_H = _s(120.0)        # compact height shown while loading
+        self._NOTE_H = _s(18.0)            # height of the interruption 2nd line
+        self._BALLS_STRIP_H = self._BALLS_BOTTOM - self._SUMMARY_BOTTOM
+
         self.on_click: Callable[[str], None] | None = None
         self.on_select: Callable[[str], None] | None = None
         self.on_close: Callable[[], None] | None = None  # ✕ — quit the app
@@ -426,8 +514,8 @@ class OverlayWindow:
                 if r.overs:
                     w = _text_width(r.overs, font)
                     overs_col_w = max(overs_col_w, w)
-            overs_col_w += 6.0  # pad so the last digit isn't clipped
-        gap = 8.0
+            overs_col_w += _s(6.0)  # pad so the last digit isn't clipped
+        gap = _s(8.0)
         score_right = (self._right - overs_col_w - gap) if any_overs else self._right
         overs_x = score_right + gap
 
@@ -457,7 +545,7 @@ class OverlayWindow:
                     name_w = name_f.attributedStringValue().size().width
                     nf = name_f.frame()
                     bf = bat_f.frame()
-                    bat_f.setFrameOrigin_(NSPoint(nf.origin.x + name_w + 6,
+                    bat_f.setFrameOrigin_(NSPoint(nf.origin.x + name_w + _s(6),
                                                   bf.origin.y))
                 # Brightness (not color) distinguishes the highlighted team. The
                 # non-highlighted (e.g. already-batted) innings is dimmed harder so
@@ -509,12 +597,12 @@ class OverlayWindow:
             return
 
         inner_w = c.frame().size.width
-        row_h = 20.0
-        hdr_h = 15.0
+        row_h = _s(20.0)
+        hdr_h = _s(15.0)
         y = 0.0  # top-down in the (flipped) container
 
         if not detail:
-            note = self._label(NSMakeRect(0, 2, inner_w, 16), 11.5, 0.3, _white(0.4))
+            note = self._label(NSMakeRect(0, _s(2), inner_w, _s(16)), 11.5, 0.3, _white(0.4))
             note.setStringValue_("Player data unavailable")
             c.addSubview_(note)
             self._detail_h = row_h
@@ -531,10 +619,10 @@ class OverlayWindow:
         def player_row(d, yy):
             # On-strike is conveyed by the '*' on the score (e.g. "42*"), so the
             # name needs no extra marker.
-            name = self._label(NSMakeRect(0, yy, inner_w * 0.62, 16), 12.5, 0.5,
+            name = self._label(NSMakeRect(0, yy, inner_w * 0.62, _s(16)), 12.5, 0.5,
                                _white(0.92))
             name.setStringValue_(d.name)
-            fig = self._label(NSMakeRect(inner_w * 0.4, yy, inner_w * 0.6, 16),
+            fig = self._label(NSMakeRect(inner_w * 0.4, yy, inner_w * 0.6, _s(16)),
                              12.5, 0.5, _white(0.95), align="right", mono=True)
             fig.setStringValue_(d.figure)
             c.addSubview_(name)
@@ -545,7 +633,7 @@ class OverlayWindow:
             for d in bats:
                 player_row(d, y); y += row_h
         if bowls:
-            y += 3  # small gap between sections
+            y += _s(3)  # small gap between sections
             section_header("Bowling", y); y += hdr_h
             for d in bowls:
                 player_row(d, y); y += row_h
@@ -560,7 +648,7 @@ class OverlayWindow:
         self._chevron.setHidden_(True)
         self._summary_note.setHidden_(True)
         self._detail_container.setHidden_(True)
-        for _n, bat, _s, _o in self._rows:
+        for _n, bat, _sc, _o in self._rows:
             bat.setHidden_(True)
         for yet in self._yet_marks:
             yet.setHidden_(True)
@@ -575,23 +663,6 @@ class OverlayWindow:
         self._loader.hide()
         for v in self._content_views:
             v.setHidden_(False)
-
-    # Distance from the TOP of the widget to the BOTTOM of each content line
-    # (measured from the build layout). Used to size the widget to just its
-    # visible content, avoiding empty space at the bottom.
-    _HEADER_BOTTOM = 54.0     # bottom of picker + venue/icons band
-    _SUMMARY_BOTTOM = 125.0
-    _BALLS_BOTTOM = 151.0     # recent-balls strip (moved above the detail)
-    _CHEVRON_BOTTOM = 176.0   # labeled section toggle ("BATSMEN & BOWLER ▾")
-    _DETAIL_TOP = 182.0       # detail container starts here (distance from top)
-    _BOTTOM_PAD = 12.0        # padding below the last content line
-    _LOADING_H = 120.0        # compact height shown while loading
-    _NOTE_H = 18.0            # height added by the interruption note (2nd summary line)
-
-    # Vertical space the recent-balls strip occupies. When a live match has no
-    # balls data (e.g. ENG19 v SA19), the chevron + detail slide up by this much
-    # so there's no empty gap where the strip would be.
-    _BALLS_STRIP_H = _BALLS_BOTTOM - _SUMMARY_BOTTOM
 
     def _resize_for(self, card) -> None:
         """Grow/shrink the widget to fit only the visible content. The expanded
@@ -683,14 +754,14 @@ class OverlayWindow:
 
         # Widths of each pill (multi-char extras like 'wd' are wider).
         widths = [
-            _BALL_D + (max(0, len(b.symbol) - 1) * 5.0 if len(b.symbol) > 1 else 0.0)
+            _BALL_D + (max(0, len(b.symbol) - 1) * _s(5.0) if len(b.symbol) > 1 else 0.0)
             for b in balls
         ]
         n_overs = sum(1 for i, b in enumerate(balls) if b.over_start and i > 0)
         # Shrink the inter-ball / over gaps together if the row would otherwise
         # reach the edge, so a 2-over-boundary row stays evenly spaced with a
         # little right margin instead of crowding the last ball against the edge.
-        avail = container.frame().size.width - 4.0  # small right breathing room
+        avail = container.frame().size.width - _s(4.0)  # small right breathing room
         pills_w = sum(widths)
         gaps = max(len(balls) - 1, 0)
         want = pills_w + gaps * _BALL_GAP + n_overs * (_OVER_GAP - _BALL_GAP)
@@ -707,7 +778,7 @@ class OverlayWindow:
                 x = gap_start + over_gap            # this pill starts here
                 sep_x = gap_start + over_gap / 2.0  # divider centered in the gap
                 sep = NSView.alloc().initWithFrame_(
-                    NSMakeRect(sep_x - 0.5, 3, 1.0, _BALL_D - 4))
+                    NSMakeRect(sep_x - _s(0.5), _s(3), _s(1.0), _BALL_D - _s(4)))
                 sep.setWantsLayer_(True)
                 sep.layer().setBackgroundColor_(_white(0.30).CGColor())
                 container.addSubview_(sep)
@@ -717,13 +788,14 @@ class OverlayWindow:
             font = 12.5 if len(b.symbol) <= 1 else 10.5
             w = widths[i]
 
-            pill = NSView.alloc().initWithFrame_(NSMakeRect(x, 1, w, _BALL_D))
+            pill = NSView.alloc().initWithFrame_(NSMakeRect(x, _s(1), w, _BALL_D))
             pill.setWantsLayer_(True)
             pill.layer().setBackgroundColor_(_rgb(_ball_color(b.kind)).CGColor())
             # A rounded square (fixed small radius) rather than a full circle.
             pill.layer().setCornerRadius_(_BALL_RADIUS)
             # Vertically center the glyph (NSTextField sits text on its baseline).
-            lbl_h = font + 4.0
+            # The label box is scaled to match the (scaled) font it will hold.
+            lbl_h = _s(font + 4.0)
             lbl = self._label(NSMakeRect(0, (_BALL_D - lbl_h) / 2.0, w, lbl_h),
                               font, 0.6, _white(0.98), align="center")
             lbl.setStringValue_(symbol)
@@ -771,6 +843,28 @@ class OverlayWindow:
             if self._card is not None:
                 self.set_card(self._card)
         self._window.orderOut_(None)
+
+    def dispose(self) -> None:
+        """Permanently tear this overlay down (used when rebuilding at a new
+        scale): unsubscribe its notification observers and hide its windows, so
+        the orphaned instance doesn't keep reacting to Space/screen changes.
+
+        We deliberately do NOT call NSWindow.close() — for a borderless HUD that
+        can over-release the window while the dropdown/hint still reference it
+        (SIGTRAP). orderOut_ hides it; Python/ARC reclaim it once unreferenced."""
+        wnc = Cocoa.NSWorkspace.sharedWorkspace().notificationCenter()
+        dnc = Cocoa.NSNotificationCenter.defaultCenter()
+        for obs in (getattr(self, "_space_observer", None),
+                    getattr(self, "_screen_observer", None)):
+            if obs is not None:
+                wnc.removeObserver_(obs)
+                dnc.removeObserver_(obs)
+        self._hint.hide()
+        self._dropdown.hide()
+        self._window.orderOut_(None)
+        # Release the window's strong self-reference so it can be freed, but let
+        # it happen lazily (no forced close()).
+        self._window.setReleasedWhenClosed_(False)
 
     # ---- Cocoa action targets (called by buttons/popups) ---------------
 
@@ -847,7 +941,7 @@ class OverlayWindow:
         win = DraggableWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             rect, NSWindowStyleMaskBorderless, Cocoa.NSBackingStoreBuffered, False
         )
-        win.setLevel_(NSScreenSaverWindowLevel)
+        win.setLevel_(_WIDGET_LEVEL)
         # Do NOT join all Spaces — that mode re-composites the window on every
         # swipe, which is the flicker. Instead the window lives on one Space and
         # we move it onto the active Space when the user switches (see
@@ -950,23 +1044,24 @@ class OverlayWindow:
         self._right = left + inner_w  # panel's inner right edge
         self._name_x = left           # left edge of the score/name column
         # Initial score-right; recomputed per render from the widest overs value.
-        self._score_right = self._right - 40.0
+        self._score_right = self._right - _s(40.0)
         # Reserve the top-right corner for the hide + close buttons; the chip
-        # sits on the line below them, flush to the right edge.
-        close_w = 16.0
-        hide_w = 16.0
+        # sits on the line below them, flush to the right edge. (Dimension vars
+        # are pre-scaled here, so downstream uses inherit the UI scale.)
+        close_w = _s(16.0)
+        hide_w = _s(16.0)
         corner_w = hide_w + close_w  # total width the two top-right icons occupy
 
         # --- Row 1 (top): ◂ match picker (left) · ● chip + – hide + ✕ quit (right) ---
-        chip_w = 72.0  # wide enough for "UPCOMING"
+        chip_w = _s(72.0)  # wide enough for "UPCOMING"
         # Dropdown picker as the top row. The button is sized to just its text
         # (via set_matches -> sizeToFit) so only the text/arrow opens the
         # dropdown; the empty area beside it belongs to the body (draggable).
         # The arrow points LEFT since the panel opens to the widget's left.
         trigger = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect(left - 2, _H - 27, inner_w - chip_w - corner_w + 2, 20), 0.92)
+            NSMakeRect(left - _s(2), _H - _s(27), inner_w - chip_w - corner_w + _s(2), _s(20)), 0.92)
         trigger.setBordered_(False)
-        trigger.setFont_(NSFont.systemFontOfSize_weight_(13.0, 0.4))
+        trigger.setFont_(_font(13.0, 0.4))
         trigger.setTitle_("◂  Match")
         trigger.setContentTintColor_(_white(0.92))
         trigger.setAlignment_(Cocoa.NSTextAlignmentLeft)
@@ -975,16 +1070,16 @@ class OverlayWindow:
         trigger.setHint_callback_("Switch match", self._show_hint)
         body.addSubview_(trigger)
         self._trigger = trigger
-        self._trigger_y = _H - 27
-        self._trigger_x = left - 2
+        self._trigger_y = _H - _s(27)
+        self._trigger_x = left - _s(2)
         self._trigger_label = "Match"  # current selection text (arrow prepended)
 
         # Quit button (✕) flush to the right edge — quits the app.
         close = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect(_W - _PADX - close_w, _H - 26, close_w, 16), 0.82)
+            NSMakeRect(_W - _PADX - close_w, _H - _s(26), close_w, _s(16)), 0.82)
         close.setBordered_(False)
         close.setTitle_("✕")
-        close.setFont_(NSFont.systemFontOfSize_(12))
+        close.setFont_(_font(12))
         close.setContentTintColor_(_white(0.82))
         close.setTarget_(self)
         close.setAction_("closeClicked:")
@@ -995,10 +1090,10 @@ class OverlayWindow:
         # Hide button (–) just left of the quit button — hides the widget to the
         # menu bar (the app keeps running).
         hide = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect(_W - _PADX - close_w - hide_w, _H - 26, hide_w, 16), 0.82)
+            NSMakeRect(_W - _PADX - close_w - hide_w, _H - _s(26), hide_w, _s(16)), 0.82)
         hide.setBordered_(False)
         hide.setTitle_("–")
-        hide.setFont_(NSFont.systemFontOfSize_weight_(14, 0.5))
+        hide.setFont_(_font(14, 0.5))
         hide.setContentTintColor_(_white(0.82))
         hide.setTarget_(self)
         hide.setAction_("hideClicked:")
@@ -1008,22 +1103,22 @@ class OverlayWindow:
 
         # Chip just left of the two corner buttons.
         self._chip = self._label(
-            NSMakeRect(_W - _PADX - corner_w - chip_w - 2, _H - 25, chip_w, 14),
+            NSMakeRect(_W - _PADX - corner_w - chip_w - _s(2), _H - _s(25), chip_w, _s(14)),
             10.0, 0.5, _white(0.55), align="right")
         body.addSubview_(self._chip)
 
         # --- Row 2: venue/format (left) · ↻ refresh, ↗ open (right) ---
-        icon_w = 15.0  # snug around the glyph so the two icons sit close together
+        icon_w = _s(15.0)  # snug around the glyph so the two icons sit close together
         self._header = self._label(
-            NSMakeRect(left, _H - 46, inner_w - 2 * icon_w - 6, 14),
+            NSMakeRect(left, _H - _s(46), inner_w - 2 * icon_w - _s(6), _s(14)),
             10.0, 0.3, _white(0.5))
         body.addSubview_(self._header)
 
         open_btn = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect(_W - _PADX - icon_w, _H - 45, icon_w, 18), 0.82)
+            NSMakeRect(_W - _PADX - icon_w, _H - _s(45), icon_w, _s(18)), 0.82)
         open_btn.setBordered_(False)
         open_btn.setTitle_("↗")
-        open_btn.setFont_(NSFont.systemFontOfSize_(13))
+        open_btn.setFont_(_font(13))
         open_btn.setContentTintColor_(_white(0.82))
         open_btn.setTarget_(self)
         open_btn.setAction_("openClicked:")
@@ -1032,10 +1127,10 @@ class OverlayWindow:
         self._open_btn = open_btn
 
         refresh = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect(_W - _PADX - 2 * icon_w - 2, _H - 45, icon_w, 18), 0.82)
+            NSMakeRect(_W - _PADX - 2 * icon_w - _s(2), _H - _s(45), icon_w, _s(18)), 0.82)
         refresh.setBordered_(False)
         refresh.setTitle_("↻")
-        refresh.setFont_(NSFont.systemFontOfSize_(13))
+        refresh.setFont_(_font(13))
         refresh.setContentTintColor_(_white(0.82))
         refresh.setTarget_(self)
         refresh.setAction_("refreshClicked:")
@@ -1052,20 +1147,20 @@ class OverlayWindow:
         # edge so it sits flush right like plain text ("yet to bat", "549/9d").
         self._rows = []
         self._yet_marks = []
-        for y in (_H - 74, _H - 99):  # gap below the venue/icons row + big score
-            name = self._label(NSMakeRect(left, y, 100, 22), 17, 0.4, _white(1.0))
-            bat = self._bat_marker(NSMakeRect(left, y + 3, 17, 17))  # x set per-row
-            score = self._label(NSMakeRect(left, y, self._score_right - left, 22),
+        for y in (_H - _s(74), _H - _s(99)):  # gap below the venue/icons row + big score
+            name = self._label(NSMakeRect(left, y, _s(100), _s(22)), 17, 0.4, _white(1.0))
+            bat = self._bat_marker(NSMakeRect(left, y + _s(3), _s(17), _s(17)))  # x per-row
+            score = self._label(NSMakeRect(left, y, self._score_right - left, _s(22)),
                                 17, 0.5, _white(1.0), align="right", mono=True)
             # Overs right-aligned to the panel edge (x/width set per render in
             # set_card). Its box is shorter and nudged up so the overs text
             # bottom sits on the score text bottom (both fonts draw from the top
             # of their box; a shorter box for the smaller font aligns baselines).
             overs = self._label(
-                NSMakeRect(self._score_right, y + 3, 44, 15),
+                NSMakeRect(self._score_right, y + _s(3), _s(44), _s(15)),
                 12, 0.3, _white(0.4), align="right", mono=True)
             # Small dimmed "yet to bat" tag, shown when a team has no score yet.
-            yet = self._label(NSMakeRect(left, y + 3, self._right - left, 14),
+            yet = self._label(NSMakeRect(left, y + _s(3), self._right - left, _s(14)),
                               10.0, 0.3, _white(0.35), align="right")
             yet.setStringValue_("yet to bat")
             yet.setHidden_(True)
@@ -1078,31 +1173,31 @@ class OverlayWindow:
             self._yet_marks.append(yet)
 
         # --- Summary (+ optional interruption note on a 2nd line) ---
-        self._summary = self._label(NSMakeRect(left, _H - 125, inner_w, 17),
+        self._summary = self._label(NSMakeRect(left, _H - _s(125), inner_w, _s(17)),
                                     12.5, 0.4, _rgb(_LIVE))
         body.addSubview_(self._summary)
         # A dimmer 2nd line for an interruption ("Match delayed by rain"), shown
         # only when set_card has a note. Positioned/toggled in set_card; the
         # content below shifts down by _NOTE_H when it's visible.
         self._summary_note = self._label(
-            NSMakeRect(left, _H - 125 - self._NOTE_H, inner_w, 15),
+            NSMakeRect(left, _H - _s(125) - self._NOTE_H, inner_w, _s(15)),
             11.5, 0.3, _white(0.5))
         self._summary_note.setHidden_(True)
         body.addSubview_(self._summary_note)
 
         # --- Recent balls (colored tiles; populated in set_card) ---
         self._balls_container = NSView.alloc().initWithFrame_(
-            NSMakeRect(left, _H - 151, inner_w, 22))
+            NSMakeRect(left, _H - _s(151), inner_w, _s(22)))
         body.addSubview_(self._balls_container)
 
         # --- Chevron toggle: expands/collapses the batsmen+bowler detail ---
         # A labeled section toggle ("BATSMEN & BOWLER  ▾") rather than a lone
         # arrow, so it reads as an expandable section.
-        chev_w = 190.0
+        chev_w = _s(190.0)
         chev = HoverButton.alloc().initWithFrame_baseAlpha_(
-            NSMakeRect((_W - chev_w) / 2.0, _H - 176, chev_w, 20), 0.55)
+            NSMakeRect((_W - chev_w) / 2.0, _H - _s(176), chev_w, _s(20)), 0.55)
         chev.setBordered_(False)
-        chev.setFont_(NSFont.systemFontOfSize_weight_(10.0, 0.5))
+        chev.setFont_(_font(10.0, 0.5))
         chev.setTitle_("BATSMEN & BOWLER  ▾")
         chev.setContentTintColor_(_white(0.55))
         chev.setAlignment_(Cocoa.NSTextAlignmentCenter)
@@ -1115,7 +1210,7 @@ class OverlayWindow:
         # --- Detail container (batsmen/bowler, grouped; expanded only) ---
         # Flipped so rows lay out top-down; positioned in _resize_for.
         self._detail_container = _FlippedView.alloc().initWithFrame_(
-            NSMakeRect(left, _H - self._DETAIL_TOP - 60, inner_w, 60))
+            NSMakeRect(left, _H - self._DETAIL_TOP - _s(60), inner_w, _s(60)))
         self._detail_container.setHidden_(True)
         body.addSubview_(self._detail_container)
         self._detail_h = 0.0
@@ -1137,7 +1232,7 @@ class OverlayWindow:
                   + [self._close, self._hide_btn, self._trigger, self._chevron,
                      self._summary_note]
                   + list(self._yet_marks))
-        for _n, bat, _s, _o in self._rows:
+        for _n, bat, _sc, _o in self._rows:
             pinned.append(bat)
         self._top_offsets = {}
         for v in pinned:
@@ -1159,9 +1254,9 @@ class OverlayWindow:
         # Let clicks pass through the label to the body view underneath.
         f.setRefusesFirstResponder_(True)
         if mono:
-            f.setFont_(NSFont.monospacedDigitSystemFontOfSize_weight_(size, weight))
+            f.setFont_(NSFont.monospacedDigitSystemFontOfSize_weight_(_s(size), weight))
         else:
-            f.setFont_(NSFont.systemFontOfSize_weight_(size, weight))
+            f.setFont_(NSFont.systemFontOfSize_weight_(_s(size), weight))
         f.setTextColor_(color)
         if align == "right":
             f.setAlignment_(Cocoa.NSTextAlignmentRight)

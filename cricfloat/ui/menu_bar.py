@@ -39,6 +39,9 @@ class MenuBar(Cocoa.NSObject):
             self._on_toggle: Callable[[], None] = callbacks["toggle"]
             self._on_refresh: Callable[[], None] = callbacks["refresh"]
             self._on_quit: Callable[[], None] = callbacks["quit"]
+            self._on_size: Callable[[str], None] = callbacks.get("size", lambda _p: None)
+            self._size_items: dict = {}   # preset name -> NSMenuItem (for checkmarks)
+            self._size_preset = callbacks.get("size_preset", "default")
             self._build()
         return self
 
@@ -70,6 +73,20 @@ class MenuBar(Cocoa.NSObject):
             self._toggle_item = _menu_item(menu, "Hide widget", self, "toggleClicked:", "h")
             menu.addItem_(Cocoa.NSMenuItem.separatorItem())
             _menu_item(menu, "Refresh now", self, "refreshClicked:", "r")
+
+            # Size submenu (Default / Large) with a checkmark on the current
+            # preset.
+            size_item = Cocoa.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "Size", None, "")
+            size_menu = Cocoa.NSMenu.alloc().init()
+            for name in ("default", "large"):
+                it = _menu_item(size_menu, name.capitalize(), self, "sizeClicked:", "")
+                it.setRepresentedObject_(name)
+                it.setState_(1 if name == self._size_preset else 0)
+                self._size_items[name] = it
+            size_item.setSubmenu_(size_menu)
+            menu.addItem_(size_item)
+
             menu.addItem_(Cocoa.NSMenuItem.separatorItem())
             _menu_item(menu, "Quit CricFloat", self, "quitClicked:", "q")
             self._item.setMenu_(menu)
@@ -92,6 +109,12 @@ class MenuBar(Cocoa.NSObject):
             return
         button.setTitle_(f"\U0001F3CF {text}" if text else "\U0001F3CF")
 
+    def set_size(self, preset: str):
+        """Move the Size submenu checkmark to `preset`."""
+        self._size_preset = preset
+        for name, item in self._size_items.items():
+            item.setState_(1 if name == preset else 0)
+
     # ---- menu actions (main thread) ------------------------------------
 
     def toggleClicked_(self, sender):  # noqa: N802
@@ -99,6 +122,9 @@ class MenuBar(Cocoa.NSObject):
 
     def refreshClicked_(self, sender):  # noqa: N802
         self._on_refresh()
+
+    def sizeClicked_(self, sender):  # noqa: N802
+        self._on_size(sender.representedObject())
 
     def quitClicked_(self, sender):  # noqa: N802
         self._on_quit()

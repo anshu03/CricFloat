@@ -16,3 +16,8 @@ POLL_INTERVAL_LIVE: float = float(os.environ.get("CRICFLOAT_POLL_LIVE", "10"))
 POLL_INTERVAL_IDLE: float = float(os.environ.get("CRICFLOAT_POLL_IDLE", "300"))
 
 HTTP_TIMEOUT: float = float(os.environ.get("CRICFLOAT_HTTP_TIMEOUT", "12"))
+
+# Widget UI size preset: "default" | "large". Env is the initial default on first
+# run; after that the user's menu-bar choice (persisted in UserDefaults) wins.
+# See cricfloat.ui.overlay_window.SCALE_PRESETS for the factors.
+SIZE_PRESET: str = os.environ.get("CRICFLOAT_SIZE", "default")

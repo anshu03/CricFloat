@@ -28,6 +28,8 @@ from Cocoa import (
 warnings.filterwarnings("ignore", category=objc.ObjCPointerWarning)
 
 NSScreenSaverWindowLevel = 1000
+# Match the widget's level (just below menu-bar popups); see overlay_window.
+_WIDGET_LEVEL = 100
 NSWindowStyleMaskBorderless = 0
 NSVisualEffectMaterialHUDWindow = 13
 NSVisualEffectStateActive = 1
@@ -110,7 +112,7 @@ class DropdownPanel:
         win = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, _WIDTH, 100),
             NSWindowStyleMaskBorderless, Cocoa.NSBackingStoreBuffered, False)
-        win.setLevel_(NSScreenSaverWindowLevel)
+        win.setLevel_(_WIDGET_LEVEL)
         win.setCollectionBehavior_((1 << 1) | (1 << 8))  # MoveToActiveSpace|FSAux
         win.setOpaque_(False)
         win.setBackgroundColor_(NSColor.clearColor())

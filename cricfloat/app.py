@@ -22,6 +22,7 @@ import objc
 
 from . import config
 from .service import ScoreService, ServiceResult
+from .ui import overlay_window
 from .ui.menu_bar import MenuBar
 from .ui.overlay_window import OverlayWindow
 from .ui.render import render_card
@@ -168,18 +169,20 @@ class _Poller(Cocoa.NSObject):
 class CricFloatApp:
     def __init__(self) -> None:
         self.service = ScoreService()
+        # Apply the persisted (or configured) size preset BEFORE building the
+        # overlay, so the window is constructed at the chosen scale.
+        self._size_preset = overlay_window.load_size_preset(config.SIZE_PRESET)
+        overlay_window.apply_size_preset(self._size_preset)
         self.overlay = OverlayWindow()
-        self.overlay.on_click = self._on_click
-        self.overlay.on_select = self._on_select
-        self.overlay.on_close = self._quit          # ✕ quits the app
-        self.overlay.on_hide = self._on_hide        # – hides to the menu bar
-        self.overlay.on_refresh = self._on_refresh
+        self._wire_overlay()
         # Menu-bar item: a persistent home so the widget can be hidden/shown and
         # the app quit even when the floating window is off-screen or hidden.
         self._menu_bar = MenuBar.alloc().initWithCallbacks_({
             "toggle": self._toggle_widget,
             "refresh": self._on_refresh,
             "quit": self._quit,
+            "size": self._set_size,
+            "size_preset": self._size_preset,
         })
         self._widget_visible = True
         self._poller = _Poller.alloc().initWithApp_(self)
@@ -308,6 +311,39 @@ class CricFloatApp:
         else:
             self.overlay.hide()
         self._menu_bar.set_widget_visible(visible)
+
+    def _set_size(self, preset: str) -> None:
+        """Change the widget size preset (default/large). The layout uses
+        scale-baked constants fixed at build time, so we rebuild the overlay at
+        the new scale and re-render the current card into it."""
+        if preset == self._size_preset:
+            return
+        self._size_preset = preset
+        overlay_window.apply_size_preset(preset)
+
+        # Tear down the old overlay window and build a fresh one at the new scale.
+        old = self.overlay
+        old.hide()
+        self.overlay = OverlayWindow()
+        self._wire_overlay()
+        old.dispose()
+
+        self._menu_bar.set_size(preset)
+        # Re-render current data (no network) so the new widget shows the match.
+        if self._widget_visible:
+            self.overlay.show()
+            self.render(self.service.current())
+        else:
+            self._widget_visible = False  # keep hidden; will render on show
+
+    def _wire_overlay(self) -> None:
+        """Attach the controller callbacks to self.overlay (used on first build
+        and after a size-change rebuild)."""
+        self.overlay.on_click = self._on_click
+        self.overlay.on_select = self._on_select
+        self.overlay.on_close = self._quit          # ✕ quits
+        self.overlay.on_hide = self._on_hide        # – hides
+        self.overlay.on_refresh = self._on_refresh
 
     def _quit(self) -> None:
         self._poller.stop()

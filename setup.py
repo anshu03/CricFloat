@@ -18,8 +18,8 @@ PLIST = {
     "CFBundleName": "CricFloat",
     "CFBundleDisplayName": "CricFloat",
     "CFBundleIdentifier": "com.cricfloat.app",
-    "CFBundleVersion": "1.0.0",
-    "CFBundleShortVersionString": "1.0.0",
+    "CFBundleVersion": "1.1.0",
+    "CFBundleShortVersionString": "1.1.0",
     # Accessory app: no Dock icon, menu-bar only (matches ActivationPolicyAccessory).
     "LSUIElement": True,
     # Talks to ESPN over HTTPS; no ATS exceptions needed, but be explicit.
@@ -41,7 +41,7 @@ OPTIONS = {
 setup(
     app=APP,
     name="CricFloat",
-    version="1.0.0",
+    version="1.1.0",
     data_files=[],
     options={"py2app": OPTIONS},
     setup_requires=["py2app"],

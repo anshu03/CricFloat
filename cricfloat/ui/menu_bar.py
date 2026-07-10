@@ -40,6 +40,7 @@ class MenuBar(Cocoa.NSObject):
             self._on_refresh: Callable[[], None] = callbacks["refresh"]
             self._on_quit: Callable[[], None] = callbacks["quit"]
             self._on_size: Callable[[str], None] = callbacks.get("size", lambda _p: None)
+            self._on_update: Callable[[], None] = callbacks.get("update", lambda: None)
             self._size_items: dict = {}   # preset name -> NSMenuItem (for checkmarks)
             self._size_preset = callbacks.get("size_preset", "default")
             self._build()
@@ -88,6 +89,8 @@ class MenuBar(Cocoa.NSObject):
             menu.addItem_(size_item)
 
             menu.addItem_(Cocoa.NSMenuItem.separatorItem())
+            self._update_item = _menu_item(
+                menu, "Check for Updates…", self, "updateClicked:", "")
             _menu_item(menu, "Quit CricFloat", self, "quitClicked:", "q")
             self._item.setMenu_(menu)
         except Exception:
@@ -115,6 +118,14 @@ class MenuBar(Cocoa.NSObject):
         for name, item in self._size_items.items():
             item.setState_(1 if name == preset else 0)
 
+    def set_update_item(self, title: str, enabled: bool):
+        """Update the 'Check for Updates…' item's label/enabled state (e.g. show
+        'Checking…' or 'Downloading…' during the flow)."""
+        item = getattr(self, "_update_item", None)
+        if item is not None:
+            item.setTitle_(title)
+            item.setEnabled_(enabled)
+
     # ---- menu actions (main thread) ------------------------------------
 
     def toggleClicked_(self, sender):  # noqa: N802
@@ -125,6 +136,9 @@ class MenuBar(Cocoa.NSObject):
 
     def sizeClicked_(self, sender):  # noqa: N802
         self._on_size(sender.representedObject())
+
+    def updateClicked_(self, sender):  # noqa: N802
+        self._on_update()
 
     def quitClicked_(self, sender):  # noqa: N802
         self._on_quit()

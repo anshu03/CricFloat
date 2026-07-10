@@ -21,6 +21,7 @@ import Cocoa
 import objc
 
 from . import config
+from . import updater
 from .service import ScoreService, ServiceResult
 from .ui import overlay_window
 from .ui.menu_bar import MenuBar
@@ -183,6 +184,7 @@ class CricFloatApp:
             "quit": self._quit,
             "size": self._set_size,
             "size_preset": self._size_preset,
+            "update": self._check_for_updates,
         })
         self._widget_visible = True
         self._poller = _Poller.alloc().initWithApp_(self)
@@ -348,3 +350,76 @@ class CricFloatApp:
     def _quit(self) -> None:
         self._poller.stop()
         Cocoa.NSApp().terminate_(None)
+
+    # ---- self-update ---------------------------------------------------
+
+    @staticmethod
+    def _on_main(block) -> None:
+        """Run `block` on the main thread (for UI after a background step)."""
+        Cocoa.NSOperationQueue.mainQueue().addOperationWithBlock_(block)
+
+    def _check_for_updates(self) -> None:
+        """Menu 'Check for Updates…': check GitHub on a background thread, then
+        prompt on the main thread."""
+        self._menu_bar.set_update_item("Checking for updates…", False)
+        threading.Thread(target=self._check_bg, daemon=True).start()
+
+    def _check_bg(self) -> None:
+        release = updater.check_for_update()
+        self._on_main(lambda: self._check_done(release))
+
+    def _check_done(self, release) -> None:
+        self._menu_bar.set_update_item("Check for Updates…", True)
+        if release is None:
+            self._alert("You're up to date",
+                        f"CricFloat {updater.current_version()} is the latest version.",
+                        ["OK"])
+            return
+        # Not running from a .app (dev/script) — can't self-replace; point to the page.
+        if updater.app_bundle_path() is None:
+            if self._alert(f"CricFloat {release.version} is available",
+                           "Self-update only works from the packaged app. Open the "
+                           "release page to download it?", ["Open Release Page", "Cancel"]) == 0:
+                open_in_chrome(release.html_url)
+            return
+        if not release.asset_url:
+            if self._alert(f"CricFloat {release.version} is available",
+                           "This release has no downloadable build attached. Open the "
+                           "release page?", ["Open Release Page", "Cancel"]) == 0:
+                open_in_chrome(release.html_url)
+            return
+        choice = self._alert(
+            f"CricFloat {release.version} is available",
+            "Download and install it now? The app will restart to finish updating.",
+            ["Install & Restart", "Later"])
+        if choice == 0:
+            self._menu_bar.set_update_item("Downloading update…", False)
+            threading.Thread(target=self._download_bg, args=(release,), daemon=True).start()
+
+    def _download_bg(self, release) -> None:
+        zip_path = updater.download_update(release)
+        self._on_main(lambda: self._download_done(zip_path))
+
+    def _download_done(self, zip_path) -> None:
+        if not zip_path:
+            self._menu_bar.set_update_item("Check for Updates…", True)
+            self._alert("Update failed", "Couldn't download the update. Please try "
+                        "again later or download it from the releases page.", ["OK"])
+            return
+        # Hand off to the detached swap script, then quit so it can replace us.
+        if updater.install_and_relaunch(zip_path):
+            self._quit()
+        else:
+            self._menu_bar.set_update_item("Check for Updates…", True)
+            self._alert("Update failed", "Couldn't install the update.", ["OK"])
+
+    def _alert(self, title: str, message: str, buttons) -> int:
+        """Show a modal NSAlert; return the index of the clicked button."""
+        alert = Cocoa.NSAlert.alloc().init()
+        alert.setMessageText_(title)
+        alert.setInformativeText_(message)
+        for b in buttons:
+            alert.addButtonWithTitle_(b)
+        Cocoa.NSApp().activateIgnoringOtherApps_(True)
+        # NSAlertFirstButtonReturn is 1000; map to 0-based index.
+        return int(alert.runModal()) - 1000
